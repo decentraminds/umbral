@@ -2,6 +2,8 @@
 
 A NuCypher API for applying proxy-reencription on the decentraminds marketplace
 
+![alt text](https://user-images.githubusercontent.com/2564234/49080419-dda35680-f243-11e8-90d7-6f649d80e03d.png)
+
 ### Installation
 
 1. Run a local fleet of Ursulas
