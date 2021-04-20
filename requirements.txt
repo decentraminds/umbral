@@ -3,7 +3,7 @@ argh==0.26.2
 asn1crypto==0.24.0
 attrdict==2.0.1
 attrs==19.2.0
-autobahn==19.10.1
+autobahn==20.12.3
 Automat==0.7.0
 base58==1.0.3
 bytestring-splitter==1.0.0a4
