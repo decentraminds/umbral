@@ -25,8 +25,10 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 # Flask imports
-from flask import Flask,jsonify,request, Response, send_file
+from flask import Flask, jsonify, request, Response, send_file
 from flask_cors import CORS
+
+from werkzeug.utils import safe_join
 
 app = Flask(__name__)
 CORS(app)
@@ -42,14 +44,15 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                          minimum_stake=0)
 
 MessageKit = 0
-EnricoS  = 0
+EnricoS = 0
 
-contractAddressList ={}
+contractAddressList = {}
 clientJsons = {}
-users={
-    "pranav":"hello123"
-};
-projects={};
+users = {
+    "pranav": "hello123"
+}
+projects = {}
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -59,19 +62,19 @@ def register():
     password = json_data['password']
     usernamearray = users.keys()
     if(username in usernamearray):
-        return jsonify({"bool" : False})
+        return jsonify({"bool": False})
     else:
         print('User added', username)
         users[username] = password
         projects[username] = []
-        return jsonify({"bool" : True})
+        return jsonify({"bool": True})
 
 
 @app.route('/setClientJson', methods=['POST'])
 def setClientJson():
     json_data = json.loads(request.data.decode('utf-8'))
     dappName = json_data['dappName']
-    print (dappName, "dappname")
+    print(dappName, "dappname")
     clientJson = json_data['clientJson']
     clientJsons[dappName] = clientJson
     return jsonify(clientJsons)
@@ -120,7 +123,7 @@ def addProject():
         return jsonify({"bool": False})
     else:
         projects[username].append(projectname)
-        return jsonify({"bool" : True})
+        return jsonify({"bool": True})
 
 
 @app.route('/getProject', methods=['POST'])
@@ -133,17 +136,19 @@ def getProject():
         return jsonify({"projects": []})
     else:
         projectsMade = projects[username]
-        return jsonify({"projects" : projectsMade})
+        return jsonify({"projects": projectsMade})
+
 
 '''
     Generate keys for Bob (Consumer) role
 '''
+
+
 def generate_doctor_keys(username):
     enc_privkey = UmbralPrivateKey.gen_key()
     sig_privkey = UmbralPrivateKey.gen_key()
 
-
-    keys = {};
+    keys = {}
     keys['enc'] = enc_privkey.to_bytes().hex()
     keys['sig'] = sig_privkey.to_bytes().hex()
 
@@ -166,6 +171,8 @@ def generate_doctor_keys(username):
 '''
     Generate nucypher Keys
 '''
+
+
 @app.route("/generateKeys", methods=['POST'])
 def generateKeys():
 
@@ -176,13 +183,12 @@ def generateKeys():
     # Fetch username and password
 
     username = json_data['username']
-    print (username, "username")
+    print(username, "username")
     password = json_data['password']
 
     # directory to store alice keys
-    ALICE_DIR = os.path.join(os.getcwd() , 'alice/' + username)
+    ALICE_DIR = os.path.join(os.getcwd(), 'alice/' + username)
     print(ALICE_DIR)
-
 
     alice_config = AliceConfiguration(
         domains={'TEMPORARY_DOMAIN'},
@@ -201,16 +207,19 @@ def generateKeys():
 
     data = {}
     data['alice'] = file
-    data['bob'] = generate_doctor_keys(username=username);
+    data['bob'] = generate_doctor_keys(username=username)
 
     print(data)
 
     return jsonify(data)
 
+
 '''
     Encrypt data and returns policy
 '''
-@app.route('/encryptData',methods=['POST'])
+
+
+@app.route('/encryptData', methods=['POST'])
 def encryptData():
     # { the object received in the request
     #     "fileFieldCount": 2,
@@ -237,11 +246,11 @@ def encryptData():
     # json_data = json.loads(request.data.decode('utf-8'))
     json_data = request.form.to_dict(flat=True)
     print('form_data', json_data)
-    ## comment
-    fileFieldCount= int(json_data['fileFieldCount'])
-    
+    # comment
+    fileFieldCount = int(json_data['fileFieldCount'])
+
     # object that contains the files
-    ## comment
+    # comment
     file_obj = {}
     # # object that contains all the other form fields
     form_field_obj = {}
@@ -250,19 +259,19 @@ def encryptData():
     # print(request.form.to_dict())
     # print('json_data')
     # print(json_data)
-    ## comment
+    # comment
     fileNames = json.loads(json_data['fileNames'])
     data_ = json.loads(json_data['textFields'])
-    ## comment for
+    # comment for
     for i in range(0, fileFieldCount):
         file_obj[fileNames[str(i)]] = request.files[str(i)].read()
-    
+
     textFieldsKeys = list(data_.keys())
     for key in textFieldsKeys:
-      form_field_obj[key] = data_[key]
+        form_field_obj[key] = data_[key]
 
     data_obj = {}
-    ## comment
+    # comment
     data_obj['file_obj'] = file_obj
     data_obj['form_field_obj'] = form_field_obj
     # hash = json_data['msg']
@@ -279,7 +288,6 @@ def encryptData():
         f.write(json.dumps(obj_to_be_stored))
         # f.write(json.dumps(data_obj))
         f.close()
-
 
     alice_config = AliceConfiguration.from_configuration_file(
         filepath=aliceFile,
@@ -299,18 +307,17 @@ def encryptData():
     # Initialise Enrico
     enrico = Enrico(policy_encrypting_key=policy_pubkey)
 
-    print ("Done upto 111")
+    print("Done upto 111")
     hash_ = msgpack.dumps(data_obj, use_bin_type=True)
     message_kit, _signature = enrico.encrypt_message(hash_)
 
     message_kit_bytes = message_kit.to_bytes()
     newMsg = UmbralMessageKit.from_bytes(message_kit_bytes)
 
-    print ("\n\ncheck")
-    print (message_kit_bytes == newMsg.to_bytes())
-    print (message_kit)
-    print (newMsg)
-
+    print("\n\ncheck")
+    print(message_kit_bytes == newMsg.to_bytes())
+    print(message_kit)
+    print(newMsg)
 
     data = {}
     data['message'] = message_kit_bytes.hex()
@@ -319,11 +326,9 @@ def encryptData():
     data['alice_sig_pubkey'] = bytes(alicia.stamp).hex()
     data['data_source'] = bytes(enrico.stamp).hex()
 
-
-
-    print ('result\n')
-    print (data)
-    print ('#####\n')
+    print('result\n')
+    print(data)
+    print('#####\n')
 
     return json.dumps(data)
 
@@ -340,7 +345,7 @@ def createDataObject(plaintext, label):
     data_obj['fileFieldCount'] = len(file_obj.keys())
     data_obj['textFieldCount'] = len(form_field_obj.keys())
     fileNameArray = list(file_obj.keys())
-    print('fileNameArray',fileNameArray)
+    print('fileNameArray', fileNameArray)
     files = {}
     for fileName in fileNameArray:
         print('fileName', fileName)
@@ -350,7 +355,8 @@ def createDataObject(plaintext, label):
 
         f.write(file_obj[fileName])
         f.close()
-        files[fileName] = 'http://localhost:5000/decrypted?fileName=' +fileName + label
+        files[fileName] = 'http://localhost:5000/decrypted?fileName=' + \
+            fileName + label
 
     data_obj['files'] = files
 
@@ -363,9 +369,12 @@ def createDataObject(plaintext, label):
 
     return data_obj
 
+
 '''
     Create policy for Box
 '''
+
+
 @app.route('/createPolicy', methods=['POST'])
 def createPolicy():
     print('data')
@@ -399,7 +408,7 @@ def createPolicy():
         SigningPower: doctor_pubkeys['sig']
     }
 
-    print (powers_and_material)
+    print(powers_and_material)
     doctor_strange = Bob.from_public_keys(powers_and_material=powers_and_material,
                                           federated_only=True)
 
@@ -411,17 +420,20 @@ def createPolicy():
                           n=1,
                           expiration=policy_end_datetime)
 
-    print (policy.public_key.to_bytes().hex())
+    print(policy.public_key.to_bytes().hex())
 
     data = {
-        'done' : True
+        'done': True
     }
 
     return jsonify(data)
 
+
 '''
     Decypt data using policy for bob
 '''
+
+
 @app.route('/decryptDelegated', methods=['POST'])
 def decryptDelegated():
 
@@ -437,7 +449,7 @@ def decryptDelegated():
     data_source = json_data['data_source']
 
     data_source = bytes.fromhex(data_source)
-    print (bob_private_keys['enc'])
+    print(bob_private_keys['enc'])
 
     enc = UmbralPrivateKey.from_bytes(bytes.fromhex(bob_private_keys["enc"]))
     sig = UmbralPrivateKey.from_bytes(bytes.fromhex(bob_private_keys["sig"]))
@@ -448,7 +460,7 @@ def decryptDelegated():
     # print (signingPublic == doctor_pubkeys['sig'])
     # print (signingPublic)
     # print (doctor_pubkeys['sig'])
-    print ('\n\n\n')
+    print('\n\n\n')
 
     bob_enc_keypair = DecryptingKeypair(private_key=enc)
     bob_sig_keypair = SigningKeypair(private_key=sig)
@@ -469,18 +481,20 @@ def decryptDelegated():
         network_middleware=RestMiddleware()
     )
 
-    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_public_key))
-    alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(alice_signing_key))
+    policy_pubkey = UmbralPublicKey.from_bytes(
+        bytes.fromhex(policy_public_key))
+    alices_sig_pubkey = UmbralPublicKey.from_bytes(
+        bytes.fromhex(alice_signing_key))
     label = label.encode()
 
     doctor.join_policy(label, alices_sig_pubkey)
 
     message_kit = UmbralMessageKit.from_bytes(bytes.fromhex(message))
 
-    print (message_kit == MessageKit)
-    print (message_kit)
-    print (MessageKit)
-    print ('\n\n\n')
+    print(message_kit == MessageKit)
+    print(message_kit)
+    print(MessageKit)
+    print('\n\n\n')
 
     data_source = Enrico.from_public_keys(
         {SigningPower: data_source},
@@ -516,6 +530,7 @@ def decryptDelegated():
 
     return jsonify(plaintext)
 
+
 @app.route('/fetchUploadedDocument', methods=['GET'])
 def fetchUploadedDocument():
     label = request.args.get('label')
@@ -530,35 +545,33 @@ def fetchUploadedDocument():
 def decrypted():
     fileName = request.args.get('fileName')
 
-    return send_file('/tmp/' + fileName, attachment_filename=fileName)
+    return send_file(safe_join('/tmp/', fileName), attachment_filename=fileName)
     # os.remove('/tmp/' + fileName)
-
 
 
 @app.route('/encrypt', methods=['POST'])
 def encrypt():
     # json_data = json.loads(request.data.decode('utf-8'))
     # print (request.data.fil)
-    print (request.files['photo'].read())
-    print (request.form.to_dict())
+    print(request.files['photo'].read())
+    print(request.form.to_dict())
     return "he"
-
 
 
 @app.route('/login', methods=['POST'])
 def login():
-   json_data = json.loads(request.data.decode('utf-8'))
-   print(json_data)
-   username = json_data['username']
-   password = json_data['password']
-   usernamearray = users.keys()
-   # if (username in usernamearray):
-   #     return jsonify({"bool": False})
-   # el
-   if(users[username] == password):
-       return jsonify({"bool" : True})
-   else:
-       return jsonify({"bool" : False})
+    json_data = json.loads(request.data.decode('utf-8'))
+    print(json_data)
+    username = json_data['username']
+    password = json_data['password']
+    usernamearray = users.keys()
+    # if (username in usernamearray):
+    #     return jsonify({"bool": False})
+    # el
+    if(users[username] == password):
+        return jsonify({"bool": True})
+    else:
+        return jsonify({"bool": False})
 
 
 @app.route('/getProjectOwner', methods=['POST'])
@@ -568,14 +581,14 @@ def getProjectOwner():
     projectname = json_data['projectName']
     usernamearray = projects.keys()
     print("usernamearray=>>>>>", projects)
-    for user in usernamearray :
+    for user in usernamearray:
         userProjects = projects[user]
         if projectname in userProjects:
-            return jsonify({"owner" : user})
+            return jsonify({"owner": user})
         else:
             continue
 
-    return jsonify({"owner" : False})
+    return jsonify({"owner": False})
 
 
 # Helper Functions
